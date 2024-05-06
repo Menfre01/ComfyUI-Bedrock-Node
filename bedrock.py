@@ -36,10 +36,6 @@ class Bedrock:
         base64_data = base64.b64encode(img).decode("utf8")
         return self.cli.invoke_model(prompt, base64_data, media_type, model_id)
     
-NODE_CLASS_MAPPINGS = {
-    "Bedrock": Bedrock,
-}
-
 class BedrockCli:
     def __init__(self, client=None):
         if client != None:
