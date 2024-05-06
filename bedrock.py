@@ -1,0 +1,103 @@
+import os, logging, boto3, json, base64, time
+from dotenv import load_dotenv
+from botocore.exceptions import ClientError
+from PIL import Image
+import numpy as np
+logger = logging.getLogger(__name__)
+
+class Bedrock:
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("prompt",)
+    FUNCTION = "invoke"
+    OUTPUT_NODE = False
+    CATEGORY = "tag/bedrock"
+    def __init__(self):
+        self.cli = BedrockCli()
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required":{ 
+                 "model_id": (["anthropic.claude-3-sonnet-20240229-v1:0"],),
+                 "media_type": (["jpeg", "png"],),
+                 "image": ("IMAGE",),
+                 "prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "Generate prompt words based on the image, requiring a children's painting style and incorporate the phrase '(colorful, vibrant colors:1.2) (simple line art)' into the prompt. The result should only contain the stable diffusion prompt words without any other information."
+                }),
+            },
+        }
+        
+    def IS_CHANGED(s):
+        return time.time()
+    
+    def invoke(self, model_id, media_type, image, prompt)->str:
+        i = 255. * image.cpu().numpy()
+        img = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
+        base64_data = base64.b64encode(img).decode("utf8")
+        return self.cli.invoke_model(prompt, base64_data, media_type, model_id)
+    
+NODE_CLASS_MAPPINGS = {
+    "Bedrock": Bedrock,
+}
+
+class BedrockCli:
+    def __init__(self, client=None):
+        if client != None:
+          self.client = client
+        else:
+          load_dotenv()
+          ak = os.getenv('AWS_ACCESS_KEY_ID')
+          sk = os.getenv('AWS_SECRET_ACCESS_KEY')
+          if ak == None or sk == None:
+              logging.error('Please set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in .env file')
+              raise ValueError('Please set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in .env file')
+          self.client = boto3.client(service_name='bedrock-runtime', region_name='us-east-1', aws_access_key_id=ak, aws_secret_access_key=sk)
+    def invoke_model(self, prompt, base64_image, media_type, model_id)->str:
+        request_body = {
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": 2048,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": prompt,
+                        },
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": "image/" + media_type,
+                                "data": base64_image,
+                            },
+                        },
+                    ],
+                }
+            ],
+        }
+        try:
+            response = self.client.invoke_model(
+                modelId=model_id,
+                body=json.dumps(request_body),
+            )
+            result = json.loads(response.get("body").read())
+            output_list = result.get("content", [])
+            return output_list[0]["text"]
+        except ClientError as err:
+            logger.error(
+                "Couldn't invoke Claude 3 Sonnet. Here's why: %s: %s",
+                err.response["Error"]["Code"],
+                err.response["Error"]["Message"],
+            )
+            raise
+
+if __name__ == "__main__":
+    image_path = "images/snow.jpeg"
+    prompt_text = "Generate prompt words based on the image, requiring a children's painting style and incorporate the phrase '(colorful, vibrant colors:1.2) (simple line art)' into the prompt. The result should only contain the stable diffusion prompt words without any other information."
+    model_id = "anthropic.claude-3-sonnet-20240229-v1:0"
+    with open(image_path, "rb") as image_file:
+        image = base64.b64encode(image_file.read()).decode("utf8")
+    cli = BedrockCli()
+    resp_prompt = cli.invoke_model(prompt_text, image, "jpeg", model_id)
+    print(resp_prompt)
