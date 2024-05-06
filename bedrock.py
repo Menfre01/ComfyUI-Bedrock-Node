@@ -1,8 +1,8 @@
-import os, logging, boto3, json, base64, time
+import os, logging, boto3, json, base64, time, numpy as np
+from PIL import Image
+from io import BytesIO
 from dotenv import load_dotenv
 from botocore.exceptions import ClientError
-from PIL import Image
-import numpy as np
 logger = logging.getLogger(__name__)
 
 class Bedrock:
@@ -18,7 +18,6 @@ class Bedrock:
         return {
             "required":{ 
                  "model_id": (["anthropic.claude-3-sonnet-20240229-v1:0"],),
-                 "media_type": (["jpeg", "png"],),
                  "image": ("IMAGE",),
                  "prompt": ("STRING", {
                     "multiline": True,
@@ -30,11 +29,17 @@ class Bedrock:
     def IS_CHANGED(s):
         return time.time()
     
-    def invoke(self, model_id, media_type, image, prompt)->str:
-        i = 255. * image.cpu().numpy()
-        img = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
-        base64_data = base64.b64encode(img).decode("utf8")
-        return self.cli.invoke_model(prompt, base64_data, media_type, model_id)
+    def invoke(self, model_id, image, prompt)->str:
+        tensor = image*255
+        tensor = np.array(tensor, dtype=np.uint8)
+
+        for i in range(tensor.shape[0]):
+            image = Image.fromarray(tensor[i])
+        buffer = BytesIO()
+        image.save(buffer, format="PNG")
+        image_bytes = buffer.getvalue()
+        base64_data = base64.b64encode(image_bytes).decode("utf8")
+        return self.cli.invoke_model(prompt, base64_data, "png", model_id)
     
 class BedrockCli:
     def __init__(self, client=None):
@@ -79,7 +84,9 @@ class BedrockCli:
             )
             result = json.loads(response.get("body").read())
             output_list = result.get("content", [])
-            return output_list[0]["text"]
+            output_prompt = output_list[0]["text"]
+            logger.info("prompt: %s", output_prompt)
+            return output_prompt
         except ClientError as err:
             logger.error(
                 "Couldn't invoke Claude 3 Sonnet. Here's why: %s: %s",
