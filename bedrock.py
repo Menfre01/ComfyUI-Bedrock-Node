@@ -39,7 +39,8 @@ class Bedrock:
         image.save(buffer, format="PNG")
         image_bytes = buffer.getvalue()
         base64_data = base64.b64encode(image_bytes).decode("utf8")
-        return self.cli.invoke_model(prompt, base64_data, "png", model)
+        output = self.cli.invoke_model(prompt, base64_data, "png", model)
+        return (output,)
     
 class BedrockCli:
     def __init__(self, client=None):
