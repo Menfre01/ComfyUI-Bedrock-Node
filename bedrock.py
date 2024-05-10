@@ -65,6 +65,9 @@ class BedrockCli:
         model_id = self._parse_model_id(model)
         request_body = {
             "anthropic_version": "bedrock-2023-05-31",
+            "system": '''StableDiffusion is a deep learning text-to-image model that generates images based on prompts. These prompts can specify the desired elements of the image, such as the appearance of characters, background, color and lighting effects, as well as the theme and style of the image. The prompts often contain weighted numbers in parentheses to indicate the importance or emphasis of certain details. For example, "(masterpiece:1.5)" indicates that the quality of the work is very important. Multiple parentheses also have similar effects. In addition, if square brackets are used, such as "{blue hair:white hair:0.3}", this represents the fusion of blue and white hair, with blue hair accounting for 0.3.
+Here is an example of using prompts to help an AI model generate an image: masterpiece,(bestquality),highlydetailed,ultra-detailed,cold,solo,(1girl),(detailedeyes),(shinegoldeneyes),(longliverhair),expressionless,(long sleeves),(puffy sleeves),(white wings),shinehalo,(heavymetal:1.2),(metaljewelry),cross-lacedfootwear (chain),(Whitedoves:1.2)	
+Following the example, provide a set of prompts that detail the following content. Start the prompts directly without using natural language to describe them:''',
             "max_tokens": 2048,
             "messages": [
                 {
