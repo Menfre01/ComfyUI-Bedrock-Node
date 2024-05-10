@@ -17,7 +17,7 @@ class Bedrock:
     def INPUT_TYPES(s):
         return {
             "required":{ 
-                 "model_id": (["anthropic.claude-3-sonnet-20240229-v1:0"],),
+                 "model": (["Claude3 sonnet", "Claude3 haiku"],),
                  "image": ("IMAGE",),
                  "prompt": ("STRING", {
                     "multiline": True,
@@ -29,7 +29,7 @@ class Bedrock:
     def IS_CHANGED(s):
         return time.time()
     
-    def invoke(self, model_id, image, prompt)->str:
+    def invoke(self, model, image, prompt)->str:
         tensor = image*255
         tensor = np.array(tensor, dtype=np.uint8)
 
@@ -39,7 +39,7 @@ class Bedrock:
         image.save(buffer, format="PNG")
         image_bytes = buffer.getvalue()
         base64_data = base64.b64encode(image_bytes).decode("utf8")
-        return self.cli.invoke_model(prompt, base64_data, "png", model_id)
+        return self.cli.invoke_model(prompt, base64_data, "png", model)
     
 class BedrockCli:
     def __init__(self, client=None):
@@ -53,7 +53,16 @@ class BedrockCli:
               logging.error('Please set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in .env file')
               raise ValueError('Please set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in .env file')
           self.client = boto3.client(service_name='bedrock-runtime', region_name='us-east-1', aws_access_key_id=ak, aws_secret_access_key=sk)
-    def invoke_model(self, prompt, base64_image, media_type, model_id)->str:
+    def _parse_model_id(self, model)->str:
+        match model:
+            case "Claude3 sonnet":
+                return "anthropic.claude-3-sonnet-20240229-v1:0"
+            case "Claude3 haiku":
+                return "anthropic.claude-3-haiku-20240307-v1:0"
+            case _:
+                return ""
+    def invoke_model(self, prompt, base64_image, media_type, model)->str:
+        model_id = self._parse_model_id(model)
         request_body = {
             "anthropic_version": "bedrock-2023-05-31",
             "max_tokens": 2048,
@@ -98,7 +107,7 @@ class BedrockCli:
 if __name__ == "__main__":
     image_path = "images/snow.jpeg"
     prompt_text = "Generate prompt words based on the image, requiring a children's painting style and incorporate the phrase '(colorful, vibrant colors:1.2) (simple line art)' into the prompt. The result should only contain the stable diffusion prompt words without any other information."
-    model_id = "anthropic.claude-3-sonnet-20240229-v1:0"
+    model_id = "Claude3 sonnet"
     with open(image_path, "rb") as image_file:
         image = base64.b64encode(image_file.read()).decode("utf8")
     cli = BedrockCli()
