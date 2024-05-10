@@ -29,7 +29,7 @@ class Bedrock:
     def IS_CHANGED(s):
         return time.time()
     
-    def invoke(self, model, image, prompt)->str:
+    def invoke(self, model, image, prompt):
         tensor = image*255
         tensor = np.array(tensor, dtype=np.uint8)
 
@@ -61,7 +61,7 @@ class BedrockCli:
                 return "anthropic.claude-3-haiku-20240307-v1:0"
             case _:
                 return ""
-    def invoke_model(self, prompt, base64_image, media_type, model)->str:
+    def invoke_model(self, prompt, base64_image, media_type, model):
         model_id = self._parse_model_id(model)
         request_body = {
             "anthropic_version": "bedrock-2023-05-31",
