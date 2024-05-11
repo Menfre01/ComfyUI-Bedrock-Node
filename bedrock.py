@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 class Bedrock:
-    RETURN_TYPES = ("STRING",)
-    RETURN_NAMES = ("prompt",)
+    RETURN_TYPES = ("STRING", "INT", "INT")
+    RETURN_NAMES = ("prompt", "width", "height")
     FUNCTION = "invoke"
     OUTPUT_NODE = False
     CATEGORY = "tag/bedrock"
@@ -54,7 +54,8 @@ prompt words without any other information.",
         image_bytes = buffer.getvalue()
         base64_data = base64.b64encode(image_bytes).decode("utf8")
         output = self.cli.invoke_model(prompt, base64_data, "png", model)
-        return (output,)
+        width, height = image.size
+        return (output, width, height)
 
 
 class BedrockCli:
